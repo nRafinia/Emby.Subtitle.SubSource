@@ -1,11 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.Compression;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Emby.Subtitle.SubSource.Helpers;
 using Emby.Subtitle.SubSource.Providers;
 using MediaBrowser.Common;
 using MediaBrowser.Common.Net;
@@ -31,25 +29,19 @@ namespace Emby.Subtitle.SubSource
             VideoContentType.Movie,
             VideoContentType.Episode
         };
-
+ 
         public int Order => 0;
 
         #endregion
 
-        private readonly IHttpClient _httpClient;
         private readonly ILogger _logger;
-        private readonly IApplicationHost _appHost;
-        private readonly ILocalizationManager _localizationManager;
-        private readonly IJsonSerializer _jsonSerializer;
+        private readonly MovieProvider _provider;
 
         public SubtitleProvider(IHttpClient httpClient, ILogger logger, IApplicationHost appHost
             , ILocalizationManager localizationManager, IJsonSerializer jsonSerializer)
         {
-            _httpClient = httpClient;
             _logger = logger;
-            _appHost = appHost;
-            _localizationManager = localizationManager;
-            _jsonSerializer = jsonSerializer;
+            _provider = new MovieProvider(httpClient, logger, appHost, jsonSerializer, localizationManager);
         }
 
         public async Task<IEnumerable<RemoteSubtitleInfo>> Search(SubtitleSearchRequest request,
@@ -86,20 +78,24 @@ namespace Emby.Subtitle.SubSource
                     Comment = string.Join("<br/>", s.Select(n => n.Name)),
                     Format = s.First().Format
                 }).ToList();
-            
+
             return result
                 .OrderBy(s => s.Name)
                 .ToList();
         }
 
-        public Task<SubtitleResponse> GetSubtitles(string id, CancellationToken cancellationToken)
+        public async Task<SubtitleResponse> GetSubtitles(string id, CancellationToken cancellationToken)
         {
-            var subtitleData = id.Split('|');
-            var subtitleId = subtitleData.First();
-            var subtitleLanguage = subtitleData.Last();
+            var downloadInfo = await _provider.GetDownloadLink(id, cancellationToken);
+            if (string.IsNullOrWhiteSpace(downloadInfo.Token))
+            {
+                return new SubtitleResponse()
+                {
+                    Stream = new MemoryStream()
+                };
+            }
 
-            var provider = new DownloadProvider(_httpClient, _logger, _appHost, _localizationManager);
-            return provider.GetSubtitles(subtitleId, subtitleLanguage, cancellationToken);
+            return await _provider.DownloadSubtitle(downloadInfo.Token, downloadInfo.Language, cancellationToken);
         }
 
         #region private methods
@@ -107,8 +103,7 @@ namespace Emby.Subtitle.SubSource
         private Task<List<RemoteSubtitleInfo>> SearchMovie(SubtitleSearchRequest request, string imdbCode,
             CancellationToken cancellationToken)
         {
-            var provider = new MovieProvider(_httpClient, _logger, _appHost, _jsonSerializer);
-            return provider.Search(request.Name, request.ProductionYear, request.Language, imdbCode,
+            return _provider.SearchMovie(request.Name, request.ProductionYear, request.Language, imdbCode,
                 cancellationToken);
         }
 
@@ -121,8 +116,7 @@ namespace Emby.Subtitle.SubSource
                 return Task.FromResult(new List<RemoteSubtitleInfo>(0));
             }
 
-            var provider = new TvProvider(_httpClient, _logger, _appHost, _jsonSerializer);
-            return provider.Search(request.Name, request.ProductionYear, request.Language, imdbCode,
+            return _provider.SearchSeries(request.Name, request.Language, imdbCode,
                 request.ParentIndexNumber ?? 0, request.IndexNumber ?? 0, cancellationToken);
         }
 
