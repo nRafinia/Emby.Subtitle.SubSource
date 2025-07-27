@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>netstandard2.1</TargetFramework>
+        <RootNamespace>Emby.Subtitle.SubSource</RootNamespace>
+        <Version>0.0.1.0</Version>
+        <Authors>nRafinia</Authors>
+        <PackageProjectUrl>https://github.com/nRafinia/Emby.Subtitle.SubSource</PackageProjectUrl>
+        <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="MediaBrowser.Server.Core" Version="4.8.11" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Remove="thumb.png" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <EmbeddedResource Include="thumb.png" />
+    </ItemGroup>
+
+</Project>
