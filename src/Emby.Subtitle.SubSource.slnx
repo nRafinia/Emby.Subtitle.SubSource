@@ -1,3 +1,4 @@
 ﻿<Solution>
+  <Project Path="Emby.Subtitle.SubSource.Test\Emby.Subtitle.SubSource.Test.csproj" Type="Classic C#" />
   <Project Path="Emby.Subtitle.SubSource\Emby.Subtitle.SubSource.csproj" Type="Classic C#" />
 </Solution>

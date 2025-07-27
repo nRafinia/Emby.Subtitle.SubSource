@@ -17,13 +17,13 @@ using MediaBrowser.Model.Logging;
 using MediaBrowser.Model.Providers;
 using MediaBrowser.Model.Serialization;
 
-namespace Emby.Subtitle.SubSource.Providers
+namespace Emby.Subtitle.SubSource
 {
     public class MovieProvider
     {
         private const string Domain = "https://api.subsource.net";
         private const string SearchMovieUrl = "/v1/movie/search";
-        private const string SubtitlesUrl = "/v1/subtitles/{0}?language={1}&sort_by_date=false";
+        private const string SubtitlesUrl = "/v1/subtitles{0}?language={1}&sort_by_date=false";
         private const string DownloadPageUrl = "/v1/subtitle/{0}";
         private const string DownloadUrl = "https://api.subsource.net/v1/subtitle/download/";
 
@@ -250,9 +250,17 @@ namespace Emby.Subtitle.SubSource.Providers
 
             var subtitleResponse = _jsonSerializer.DeserializeFromStream<SubtitlesResponse>(response.Content);
 
-            var episodeCode = $"S{season.ToString().PadLeft(2, '0')}E{episode.ToString().PadLeft(2, '0')}";
+            var episodeCodeF1 = $"S{season.ToString().PadLeft(2, '0')}E{episode.ToString().PadLeft(2, '0')}";
+            var episodeCodeF2 = $"S{season}E{episode.ToString().PadLeft(2, '0')}";
+            var episodeCodeF3 = $"S{season.ToString().PadLeft(2, '0')}E{episode}";
+            var episodeCodeF4 = $"S{season}E{episode}";
             var episodeSubtitles = subtitleResponse.subtitles
-                .Where(s => s.release_info.Contains(episodeCode, StringComparison.CurrentCultureIgnoreCase));
+                .Where(s =>
+                    s.release_info.Contains(episodeCodeF1, StringComparison.CurrentCultureIgnoreCase) ||
+                    s.release_info.Contains(episodeCodeF2, StringComparison.CurrentCultureIgnoreCase) ||
+                    s.release_info.Contains(episodeCodeF3, StringComparison.CurrentCultureIgnoreCase) ||
+                    s.release_info.Contains(episodeCodeF4, StringComparison.CurrentCultureIgnoreCase)
+                );
 
             var res = episodeSubtitles.Select(s => new RemoteSubtitleInfo()
             {

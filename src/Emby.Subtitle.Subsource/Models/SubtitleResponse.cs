@@ -11,7 +11,7 @@
             public string release_type { get; set; }
             public string release_info { get; set; }
             public string upload_date { get; set; }
-            public int hearing_impaired { get; set; }
+            public int? hearing_impaired { get; set; }
             public string caption { get; set; }
             public string rating { get; set; }
             public int uploader_id { get; set; }
