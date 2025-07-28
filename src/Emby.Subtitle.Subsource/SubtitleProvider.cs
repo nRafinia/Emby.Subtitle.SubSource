@@ -82,7 +82,7 @@ namespace Emby.Subtitle.SubSource
                 .OrderBy(s => s.Name)
                 .ToList();
         }
-
+        
         public async Task<SubtitleResponse> GetSubtitles(string id, CancellationToken cancellationToken)
         {
             var downloadInfo = await _provider.GetDownloadLink(id, cancellationToken);
@@ -121,4 +121,5 @@ namespace Emby.Subtitle.SubSource
 
         #endregion
     }
+    
 }

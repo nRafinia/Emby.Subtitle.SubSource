@@ -25,7 +25,7 @@ namespace Emby.Subtitle.SubSource
         private const string SearchMovieUrl = "/v1/movie/search";
         private const string SubtitlesUrl = "/v1/subtitles{0}?language={1}&sort_by_date=false";
         private const string DownloadPageUrl = "/v1/subtitle/{0}";
-        private const string DownloadUrl = "https://api.subsource.net/v1/subtitle/download/";
+        private const string DownloadUrl = "/v1/subtitle/download/";
 
         private readonly IHttpClient _httpClient;
         private readonly ILogger _logger;
@@ -77,11 +77,10 @@ namespace Emby.Subtitle.SubSource
             var movieName = subtitleData[0];
             var language = subtitleData[1];
 
-            _logger?.Debug("SubSource, Downloading subtitle with name={Name}, language{Language}", movieName,
-                language);
+            _logger?.Debug($"SubSource, Downloading subtitle with name={movieName}, language{language}");
 
-            var requestOptions = BaseRequestOptions(cancellationToken);
-            requestOptions.Url = string.Format(DownloadPageUrl, id);
+            var url = string.Format(DownloadPageUrl, id.Replace('|', '/'));
+            var requestOptions = BaseRequestOptions(url, cancellationToken);
 
             using var response = await _httpClient.GetResponse(requestOptions);
             if (response.ContentLength < 0)
@@ -97,10 +96,10 @@ namespace Emby.Subtitle.SubSource
         public async Task<SubtitleResponse> DownloadSubtitle(string downloadToken, string language,
             CancellationToken cancellationToken)
         {
-            _logger?.Debug("SubSource, Downloading subtitle with id={id}", downloadToken);
+            _logger?.Debug($"SubSource, Downloading subtitle with id={downloadToken}");
 
-            var requestOptions = BaseRequestOptions(cancellationToken);
-            requestOptions.Url = $"{DownloadUrl}{downloadToken}";
+            var url = $"{DownloadUrl}{downloadToken}";
+            var requestOptions = BaseRequestOptions(url, cancellationToken);
 
             try
             {
@@ -147,13 +146,14 @@ namespace Emby.Subtitle.SubSource
             }
         }
 
+        #region private methods
+
         private async Task<SearchResponse.Results> Search(string title, string movieId, int? year, string type,
             CancellationToken cancellationToken)
         {
-            _logger?.Debug("SubSource, Searching for '{title}', movie Id {movieId}", title, movieId);
+            _logger?.Debug($"SubSource, Searching for '{title}', movie Id {movieId}");
 
-            var requestOptions = BaseRequestOptions(cancellationToken);
-            requestOptions.Url = SearchMovieUrl;
+            var requestOptions = BaseRequestOptions(SearchMovieUrl, cancellationToken);
 
             var searchText = !string.IsNullOrWhiteSpace(movieId)
                 ? movieId
@@ -212,8 +212,8 @@ namespace Emby.Subtitle.SubSource
         private async Task<List<RemoteSubtitleInfo>> ExtractMovieSubtitles(string link, string lang,
             CancellationToken cancellationToken)
         {
-            var requestOptions = BaseRequestOptions(cancellationToken);
-            requestOptions.Url = string.Format(SubtitlesUrl, link, lang.MapFromEmbyLanguage());
+            var url = string.Format(SubtitlesUrl, link, lang.MapFromEmbyLanguage());
+            var requestOptions = BaseRequestOptions(url, cancellationToken);
 
             using var response = await _httpClient.GetResponse(requestOptions);
             if (response.ContentLength < 0)
@@ -239,8 +239,8 @@ namespace Emby.Subtitle.SubSource
         private async Task<List<RemoteSubtitleInfo>> ExtractSeriesSubtitles(string link, string lang, int season,
             int episode, CancellationToken cancellationToken)
         {
-            var requestOptions = BaseRequestOptions(cancellationToken);
-            requestOptions.Url = string.Format(SubtitlesUrl, link, lang.MapFromEmbyLanguage());
+            var url = string.Format(SubtitlesUrl, link, lang.MapFromEmbyLanguage());
+            var requestOptions = BaseRequestOptions(url, cancellationToken);
 
             using var response = await _httpClient.GetResponse(requestOptions);
             if (response.ContentLength < 0)
@@ -275,14 +275,17 @@ namespace Emby.Subtitle.SubSource
             return res;
         }
 
-        private HttpRequestOptions BaseRequestOptions(CancellationToken cancellationToken) => new HttpRequestOptions
-        {
-            Host = Domain,
-            UserAgent = $"Emby/{_appHost?.ApplicationVersion}",
-            //TimeoutMs = 20_000,
-            CancellationToken = cancellationToken,
-            LogRequestAsDebug = true,
-            LogResponseHeaders = true
-        };
+        private HttpRequestOptions BaseRequestOptions(string url, CancellationToken cancellationToken) =>
+            new HttpRequestOptions
+            {
+                Url = Domain + url,
+                UserAgent = $"Emby/{_appHost?.ApplicationVersion}",
+                //TimeoutMs = 20_000,
+                CancellationToken = cancellationToken,
+                LogRequestAsDebug = true,
+                LogResponseHeaders = true
+            };
+
+        #endregion
     }
 }
