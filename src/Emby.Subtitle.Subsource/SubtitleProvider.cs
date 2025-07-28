@@ -51,8 +51,7 @@ namespace Emby.Subtitle.SubSource
                 : request.SeriesName;
 
             _logger?.Info(
-                "SubSource, Request subtitle for '{title}', language={lang}, year={year}, movie Id={movieId}, Season={season}, Episode={episode}",
-                title, request.Language, request.ProductionYear, request.ParentIndexNumber, request.IndexNumber);
+                $"SubSource, Request subtitle for '{title}', language={request.Language}, year={request.ProductionYear}, Season={request.ParentIndexNumber}, Episode={request.IndexNumber}");
 
             var imdbRecognitionData = request.ProviderIds?
                 .FirstOrDefault(p =>
@@ -67,7 +66,7 @@ namespace Emby.Subtitle.SubSource
 
             foundedSubtitles.RemoveAll(l => string.IsNullOrWhiteSpace(l.Name));
 
-            var result = foundedSubtitles.GroupBy(s => s.Id)
+            /*var result = foundedSubtitles.GroupBy(s => s.Id)
                 .Select(s => new RemoteSubtitleInfo()
                 {
                     Id = s.First().Id,
@@ -80,7 +79,8 @@ namespace Emby.Subtitle.SubSource
 
             return result
                 .OrderBy(s => s.Name)
-                .ToList();
+                .ToList();*/
+            return foundedSubtitles;
         }
         
         public async Task<SubtitleResponse> GetSubtitles(string id, CancellationToken cancellationToken)

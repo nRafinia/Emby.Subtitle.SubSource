@@ -23,7 +23,7 @@ namespace Emby.Subtitle.SubSource
     {
         private const string Domain = "https://api.subsource.net";
         private const string SearchMovieUrl = "/v1/movie/search";
-        private const string SubtitlesUrl = "/v1/subtitles{0}?language={1}&sort_by_date=false";
+        private const string SubtitlesUrl = "/v1{0}?language={1}&sort_by_date=false";
         private const string DownloadPageUrl = "/v1/subtitle/{0}";
         private const string DownloadUrl = "/v1/subtitle/download/";
 
@@ -212,6 +212,8 @@ namespace Emby.Subtitle.SubSource
         private async Task<List<RemoteSubtitleInfo>> ExtractMovieSubtitles(string link, string lang,
             CancellationToken cancellationToken)
         {
+            _logger?.Debug($"SubSource, Extracting subtitles for movie link={link}, language={lang}");
+            
             var url = string.Format(SubtitlesUrl, link, lang.MapFromEmbyLanguage());
             var requestOptions = BaseRequestOptions(url, cancellationToken);
 
@@ -226,7 +228,7 @@ namespace Emby.Subtitle.SubSource
             var res = subtitleResponse.subtitles.Select(s => new RemoteSubtitleInfo()
             {
                 Id = s.link.Replace('/', '|'),
-                Name = s.release_info,
+                Name = $"{s.release_info} - {s.caption}",
                 Author = s.uploader_displayname,
                 ProviderName = Const.PluginName,
                 Comment = s.caption,
