@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Emby.Subtitle.SubSource.Models;
 using MediaBrowser.Common;
 using MediaBrowser.Common.Net;
 using MediaBrowser.Controller.Providers;
@@ -28,19 +28,22 @@ namespace Emby.Subtitle.SubSource
             VideoContentType.Movie,
             VideoContentType.Episode
         };
- 
+
         public int Order => 0;
 
         #endregion
 
         private readonly ILogger _logger;
         private readonly MovieProvider _provider;
+        private PluginConfiguration Configuration => Plugin.Instance.GetConfiguration();
 
         public SubtitleProvider(IHttpClient httpClient, ILogger logger, IApplicationHost appHost
             , ILocalizationManager localizationManager, IJsonSerializer jsonSerializer)
         {
             _logger = logger;
-            _provider = new MovieProvider(httpClient, logger, appHost, jsonSerializer, localizationManager);
+            _provider = new MovieProvider(httpClient, logger, appHost, jsonSerializer, localizationManager,
+                Configuration);
+            logger.Debug("SubSource, apiKey={0}", Configuration?.ApiKey);
         }
 
         public async Task<IEnumerable<RemoteSubtitleInfo>> Search(SubtitleSearchRequest request,
@@ -66,35 +69,13 @@ namespace Emby.Subtitle.SubSource
 
             foundedSubtitles.RemoveAll(l => string.IsNullOrWhiteSpace(l.Name));
 
-            /*var result = foundedSubtitles.GroupBy(s => s.Id)
-                .Select(s => new RemoteSubtitleInfo()
-                {
-                    Id = s.First().Id,
-                    Name = $"{s.First().ProviderName} ({s.First().Author})",
-                    Author = s.First().Author,
-                    ProviderName = Name,
-                    Comment = string.Join("<br/>", s.Select(n => n.Name)),
-                    Format = s.First().Format
-                }).ToList();
-
-            return result
-                .OrderBy(s => s.Name)
-                .ToList();*/
             return foundedSubtitles;
         }
-        
+
         public async Task<SubtitleResponse> GetSubtitles(string id, CancellationToken cancellationToken)
         {
-            var downloadInfo = await _provider.GetDownloadLink(id, cancellationToken);
-            if (string.IsNullOrWhiteSpace(downloadInfo.Token))
-            {
-                return new SubtitleResponse()
-                {
-                    Stream = new MemoryStream()
-                };
-            }
-
-            return await _provider.DownloadSubtitle(downloadInfo.Token, downloadInfo.Language, cancellationToken);
+            var data = id.Split('_');
+            return await _provider.DownloadSubtitle(data[0],data[1], cancellationToken);
         }
 
         #region private methods
@@ -121,5 +102,4 @@ namespace Emby.Subtitle.SubSource
 
         #endregion
     }
-    
 }

@@ -1,4 +1,9 @@
+using MediaBrowser.Common;
+using MediaBrowser.Common.Configuration;
 using MediaBrowser.Model.Drawing;
+using MediaBrowser.Model.IO;
+using MediaBrowser.Model.Logging;
+using Moq;
 
 namespace Emby.Subtitle.SubSource.Test
 {
@@ -8,7 +13,17 @@ namespace Emby.Subtitle.SubSource.Test
 
         public PluginTest()
         {
-            _plugin = new Plugin();
+            var appHost = new Mock<IApplicationHost>();
+            var logger = new Mock<ILogManager>();
+            var applicationPath = new Mock<IApplicationPaths>();
+            var fileSystem = new Mock<IFileSystem>();
+            
+            applicationPath.Setup(x => x.PluginConfigurationsPath).Returns(Path.GetTempPath());
+            
+            appHost.Setup(x => x.Resolve<ILogManager>()).Returns(logger.Object);
+            appHost.Setup(x => x.Resolve<IApplicationPaths>()).Returns(applicationPath.Object);
+            appHost.Setup(x => x.Resolve<IFileSystem>()).Returns(fileSystem.Object);
+            _plugin = new Plugin(appHost.Object);
         }
 
         [Fact]

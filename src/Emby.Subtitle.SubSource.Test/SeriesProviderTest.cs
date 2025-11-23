@@ -24,12 +24,18 @@ namespace Emby.Subtitle.SubSource.Test
             _mockJsonSerializer = new Mock<IJsonSerializer>();
             var mockLocalizationManager = new Mock<ILocalizationManager>();
 
+            var config = new PluginConfiguration()
+            {
+                ApiKey = "test-api-key"
+            };
+            
             _movieProvider = new MovieProvider(
                 _mockHttpClient.Object,
                 mockLogger.Object,
                 _mockAppHost.Object,
                 _mockJsonSerializer.Object,
-                mockLocalizationManager.Object
+                mockLocalizationManager.Object,
+                config
             );
         }
 
@@ -51,7 +57,7 @@ namespace Emby.Subtitle.SubSource.Test
                 [
                     new SearchResponse.Results
                     {
-                        id = 38948,
+                        movieId = 38948,
                         title = "Game of Thrones",
                         type = "tvseries",
                         link = "/series/game-of-thrones",
@@ -68,17 +74,17 @@ namespace Emby.Subtitle.SubSource.Test
 
             var subtitlesResponse = new SubtitlesResponse
             {
-                subtitles =
+                data =
                 [
                     new SubtitlesResponse.Subtitles()
                     {
-                        id = 739744,
+                        subtitleId = 739744,
                         language = "farsi_persian",
                         release_type = "Other",
                         release_info = "Game.of.Thrones.S3E09.All.HDTV",
-                        upload_date = "2013-06-03T15:34:00.000Z",
+                        createdAt = "2013-06-03T15:34:00.000Z",
                         hearing_impaired = null,
-                        caption = "The Rains of Castamere - باران هاي کاستامر",
+                        commentary = "The Rains of Castamere - باران هاي کاستامر",
                         rating = "unrated",
                         uploader_id = 718292,
                         uploader_displayname = "lvlr",
@@ -89,13 +95,13 @@ namespace Emby.Subtitle.SubSource.Test
                     },
                     new SubtitlesResponse.Subtitles()
                     {
-                        id = 734679,
+                        subtitleId = 734679,
                         language = "farsi_persian",
                         release_type = "Other",
                         release_info = "Game.of.Thrones.S3E08.All.HDTV  IranFilm",
-                        upload_date = "2013-05-22T16:42:00.000Z",
+                        createdAt = "2013-05-22T16:42:00.000Z",
                         hearing_impaired = null,
-                        caption = "Second Sons - پسران دوم",
+                        commentary = "Second Sons - پسران دوم",
                         rating = "unrated",
                         uploader_id = 702064,
                         uploader_displayname = "taktaz",
@@ -171,7 +177,7 @@ namespace Emby.Subtitle.SubSource.Test
                 [
                     new SearchResponse.Results
                     {
-                        id = 38948,
+                        movieId = 38948,
                         title = "Game of Thrones",
                         type = "tvseries",
                         link = "/series/game-of-thrones",
@@ -184,14 +190,14 @@ namespace Emby.Subtitle.SubSource.Test
 
             var subtitlesResponse = new SubtitlesResponse
             {
-                subtitles =
+                data =
                 [
                     new SubtitlesResponse.Subtitles()
                     {
-                        id = 734679,
+                        subtitleId = 734679,
                         language = "farsi_persian",
                         release_info = "Game.of.Thrones.S3E08.All.HDTV  IranFilm",
-                        caption = "Second Sons - پسران دوم",
+                        commentary = "Second Sons - پسران دوم",
                         uploader_displayname = "taktaz",
                         link = "game-of-thrones-season-3/farsi_persian/734679"
                     }
@@ -328,7 +334,7 @@ namespace Emby.Subtitle.SubSource.Test
                 [
                     new SearchResponse.Results
                     {
-                        id = 38948,
+                        movieId = 38948,
                         title = "Game of Thrones",
                         type = "tvseries",
                         link = "/series/game-of-thrones",
@@ -389,7 +395,7 @@ namespace Emby.Subtitle.SubSource.Test
                 [
                     new SearchResponse.Results
                     {
-                        id = 38948,
+                        movieId = 38948,
                         title = "Game of Thrones",
                         type = "tvseries",
                         link = "/series/game-of-thrones",
@@ -397,7 +403,7 @@ namespace Emby.Subtitle.SubSource.Test
                     },
                     new SearchResponse.Results
                     {
-                        id = 38945,
+                        movieId = 38945,
                         title = "Game of Thrones Conquest & Rebellion: An Animated History of the Seven Kingdoms",
                         type = "movie",
                         link = "/subtitles/game-of-thrones-conquest",
@@ -410,14 +416,14 @@ namespace Emby.Subtitle.SubSource.Test
 
             var subtitlesResponse = new SubtitlesResponse
             {
-                subtitles =
+                data =
                 [
                     new SubtitlesResponse.Subtitles()
                     {
-                        id = 739744,
+                        subtitleId = 739744,
                         language = "farsi_persian",
                         release_info = "Game.of.Thrones.S3E09.All.HDTV",
-                        caption = "The Rains of Castamere",
+                        commentary = "The Rains of Castamere",
                         uploader_displayname = "lvlr",
                         link = "game-of-thrones-season-3/farsi_persian/739744"
                     }
@@ -479,7 +485,7 @@ namespace Emby.Subtitle.SubSource.Test
                 [
                     new SearchResponse.Results
                     {
-                        id = 38948,
+                        movieId = 38948,
                         title = "Game of Thrones",
                         type = "tvseries",
                         link = "/series/game-of-thrones",
@@ -492,23 +498,23 @@ namespace Emby.Subtitle.SubSource.Test
 
             var subtitlesResponse = new SubtitlesResponse
             {
-                subtitles =
+                data =
                 [
                     new SubtitlesResponse.Subtitles()
                     {
-                        id = 713369,
+                        subtitleId = 713369,
                         language = "farsi_persian",
                         release_info = "S03E02",
-                        caption = "Preza",
+                        commentary = "Preza",
                         uploader_displayname = "mrjp_subtrans",
                         link = "game-of-thrones-season-3/farsi_persian/713369"
                     },
                     new SubtitlesResponse.Subtitles()
                     {
-                        id = 739744,
+                        subtitleId = 739744,
                         language = "farsi_persian",
                         release_info = "Game.of.Thrones.S3E09.All.HDTV",
-                        caption = "The Rains of Castamere",
+                        commentary = "The Rains of Castamere",
                         uploader_displayname = "lvlr",
                         link = "game-of-thrones-season-3/farsi_persian/739744"
                     }

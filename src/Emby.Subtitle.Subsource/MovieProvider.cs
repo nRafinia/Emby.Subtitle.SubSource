@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Net.Http;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Emby.Subtitle.SubSource.Helpers;
@@ -22,83 +20,60 @@ namespace Emby.Subtitle.SubSource
     public class MovieProvider
     {
         private const string Domain = "https://api.subsource.net";
-        private const string SearchMovieUrl = "/v1/movie/search";
-        private const string SubtitlesUrl = "/v1{0}?language={1}&sort_by_date=false";
-        private const string DownloadPageUrl = "/v1/subtitle/{0}";
-        private const string DownloadUrl = "/v1/subtitle/download/";
+        private const string SearchMovieUrl = "/api/v1/movies/search?searchType={0}";
+        private const string SubtitlesUrl = "/api/v1/subtitles?movieId={0}&language={1}&sort=rating";
+        private const string DownloadUrl = "/api/v1/subtitles/{0}/download";
 
         private readonly IHttpClient _httpClient;
         private readonly ILogger _logger;
         private readonly IApplicationHost _appHost;
         private readonly IJsonSerializer _jsonSerializer;
         private readonly ILocalizationManager _localizationManager;
+        private readonly PluginConfiguration _configuration;
 
         public MovieProvider(IHttpClient httpClient, ILogger logger, IApplicationHost appHost,
-            IJsonSerializer jsonSerializer, ILocalizationManager localizationManager)
+            IJsonSerializer jsonSerializer, ILocalizationManager localizationManager, PluginConfiguration configuration)
         {
             _httpClient = httpClient;
             _logger = logger;
             _appHost = appHost;
             _jsonSerializer = jsonSerializer;
             _localizationManager = localizationManager;
+            _configuration = configuration;
         }
 
         public async Task<List<RemoteSubtitleInfo>> SearchMovie(string title, int? year, string lang, string movieId,
             CancellationToken cancellationToken)
         {
-            var foundedMovie = await Search(title, movieId, year, "movie", cancellationToken);
+            var foundedMovie = await Search(title, movieId, year, "movie", null, cancellationToken);
             if (foundedMovie == null)
             {
                 return new List<RemoteSubtitleInfo>(0);
             }
 
-            var res = await ExtractMovieSubtitles(foundedMovie.link, lang, cancellationToken);
+            var res = await ExtractMovieSubtitles(foundedMovie.movieId, lang, cancellationToken);
             return res;
         }
 
         public async Task<List<RemoteSubtitleInfo>> SearchSeries(string title, string lang, string movieId,
             int season, int episode, CancellationToken cancellationToken)
         {
-            var foundedMovie = await Search(title, movieId, null, "tvseries", cancellationToken);
+            var foundedMovie = await Search(title, movieId, null, "series", season, cancellationToken);
             if (foundedMovie == null)
             {
                 return new List<RemoteSubtitleInfo>(0);
             }
 
-            var link = $"{foundedMovie.link}/season-{season}";
-            var res = await ExtractSeriesSubtitles(link, lang, season, episode, cancellationToken);
+            var res = await ExtractSeriesSubtitles(foundedMovie.movieId, lang, season, episode, cancellationToken);
             return res;
         }
 
-        public async Task<(string Token, string Language)> GetDownloadLink(string id,
+        public async Task<SubtitleResponse> DownloadSubtitle(string subtitleId, string language,
             CancellationToken cancellationToken)
         {
-            var subtitleData = id.Split('|');
-            var movieName = subtitleData[0];
-            var language = subtitleData[1];
+            _logger?.Debug($"SubSource, Downloading subtitle with id={subtitleId}");
 
-            _logger?.Debug($"SubSource, Downloading subtitle with name={movieName}, language{language}");
-
-            var url = string.Format(DownloadPageUrl, id.Replace('|', '/'));
-            var requestOptions = BaseRequestOptions(url, cancellationToken);
-
-            using var response = await _httpClient.GetResponse(requestOptions);
-            if (response.ContentLength < 0)
-            {
-                return (string.Empty, string.Empty);
-            }
-
-            var downloadPageResponse = _jsonSerializer.DeserializeFromStream<DownloadResponse>(response.Content);
-
-            return (downloadPageResponse?.subtitle?.download_token, language);
-        }
-
-        public async Task<SubtitleResponse> DownloadSubtitle(string downloadToken, string language,
-            CancellationToken cancellationToken)
-        {
-            _logger?.Debug($"SubSource, Downloading subtitle with id={downloadToken}");
-
-            var url = $"{DownloadUrl}{downloadToken}";
+            var url = string.Format(DownloadUrl, subtitleId);
             var requestOptions = BaseRequestOptions(url, cancellationToken);
 
             try
@@ -149,28 +124,38 @@ namespace Emby.Subtitle.SubSource
         #region private methods
 
         private async Task<SearchResponse.Results> Search(string title, string movieId, int? year, string type,
-            CancellationToken cancellationToken)
+            int? season, CancellationToken cancellationToken)
         {
             _logger?.Debug($"SubSource, Searching for '{title}', movie Id {movieId}");
 
-            var requestOptions = BaseRequestOptions(SearchMovieUrl, cancellationToken);
+            string searchUrl;
 
-            var searchText = !string.IsNullOrWhiteSpace(movieId)
-                ? movieId
-                : title;
-
-            var request = new
+            if (string.IsNullOrWhiteSpace(movieId))
             {
-                query = searchText,
-                signal = new { },
-                includeSeasons = false,
-                limit = 10
-            };
+                searchUrl = string.Format(SearchMovieUrl, "text");
+                searchUrl += $"&q={title}";
+            }
+            else
+            {
+                searchUrl = string.Format(SearchMovieUrl, "imdb");
+                searchUrl += $"&imdb={movieId}";
+            }
 
-            requestOptions.RequestHttpContent = new StringContent(_jsonSerializer.SerializeToString(request),
-                Encoding.UTF8, "application/json");
+            if (year != null)
+            {
+                searchUrl += $"&year={year}";
+            }
 
-            using var response = await _httpClient.Post(requestOptions);
+            if (season != null)
+            {
+                searchUrl += $"&season={season}";
+            }
+
+            searchUrl += $"&type={type}";
+
+            var requestOptions = BaseRequestOptions(searchUrl, cancellationToken);
+
+            using var response = await _httpClient.GetResponse(requestOptions);
             if (response.ContentLength < 0)
             {
                 return null;
@@ -178,18 +163,17 @@ namespace Emby.Subtitle.SubSource
 
             var searchResponse = _jsonSerializer.DeserializeFromStream<SearchResponse>(response.Content);
 
-            if (searchResponse.success == false || searchResponse.results.Length == 0)
+            if (!searchResponse.success || searchResponse.data.Length == 0)
             {
                 return null;
             }
 
-            if (searchResponse.results.Length == 1)
+            if (searchResponse.data.Length == 1)
             {
-                return searchResponse.results.First();
+                return searchResponse.data.First();
             }
 
-            var res = searchResponse.results
-                .Where(s => s.type == type)
+            var res = searchResponse.data
                 .ToList();
 
             if (res.Count() > 1 && !string.IsNullOrWhiteSpace(title))
@@ -209,12 +193,12 @@ namespace Emby.Subtitle.SubSource
             return res.FirstOrDefault();
         }
 
-        private async Task<List<RemoteSubtitleInfo>> ExtractMovieSubtitles(string link, string lang,
+        private async Task<List<RemoteSubtitleInfo>> ExtractMovieSubtitles(int movieId, string lang,
             CancellationToken cancellationToken)
         {
-            _logger?.Debug($"SubSource, Extracting subtitles for movie link={link}, language={lang}");
-            
-            var url = string.Format(SubtitlesUrl, link, lang.MapFromEmbyLanguage());
+            _logger?.Debug($"SubSource, Extracting subtitles for movie link={movieId}, language={lang}");
+
+            var url = string.Format(SubtitlesUrl, movieId, lang.MapFromEmbyLanguage());
             var requestOptions = BaseRequestOptions(url, cancellationToken);
 
             using var response = await _httpClient.GetResponse(requestOptions);
@@ -225,23 +209,27 @@ namespace Emby.Subtitle.SubSource
 
             var subtitleResponse = _jsonSerializer.DeserializeFromStream<SubtitlesResponse>(response.Content);
 
-            var res = subtitleResponse.subtitles.Select(s => new RemoteSubtitleInfo()
+            var res = subtitleResponse.data.Select(s => new RemoteSubtitleInfo()
             {
-                Id = s.link.Replace('/', '|'),
-                Name = $"{s.release_info} - {s.caption}",
-                Author = s.uploader_displayname,
+                Id = $"{s.subtitleId}_{s.language}",
+                Name = $"{string.Join(',', s.releaseInfo)}",
+                Author = s.contributors.FirstOrDefault()?.displayname,
                 ProviderName = Const.PluginName,
-                Comment = s.caption,
+                Comment = s.commentary,
+                CommunityRating = s.rating["good"],
+                DateCreated = s.createdAt,
+                Language = s.language,
+                DownloadCount = s.downloads,
                 Format = "srt"
             }).ToList();
 
             return res;
         }
 
-        private async Task<List<RemoteSubtitleInfo>> ExtractSeriesSubtitles(string link, string lang, int season,
+        private async Task<List<RemoteSubtitleInfo>> ExtractSeriesSubtitles(int movieId, string lang, int season,
             int episode, CancellationToken cancellationToken)
         {
-            var url = string.Format(SubtitlesUrl, link, lang.MapFromEmbyLanguage());
+            var url = string.Format(SubtitlesUrl, movieId, lang.MapFromEmbyLanguage());
             var requestOptions = BaseRequestOptions(url, cancellationToken);
 
             using var response = await _httpClient.GetResponse(requestOptions);
@@ -256,23 +244,29 @@ namespace Emby.Subtitle.SubSource
             var episodeCodeF2 = $"S{season}E{episode.ToString().PadLeft(2, '0')}";
             var episodeCodeF3 = $"S{season.ToString().PadLeft(2, '0')}E{episode}";
             var episodeCodeF4 = $"S{season}E{episode}";
-            var episodeSubtitles = subtitleResponse.subtitles
+            var episodeSubtitles = subtitleResponse.data
+                .Select(s => new { subtitle = s, title = string.Join(',', s.releaseInfo) + "," + s.commentary })
                 .Where(s =>
-                    s.release_info.Contains(episodeCodeF1, StringComparison.CurrentCultureIgnoreCase) ||
-                    s.release_info.Contains(episodeCodeF2, StringComparison.CurrentCultureIgnoreCase) ||
-                    s.release_info.Contains(episodeCodeF3, StringComparison.CurrentCultureIgnoreCase) ||
-                    s.release_info.Contains(episodeCodeF4, StringComparison.CurrentCultureIgnoreCase)
+                    s.title.Contains(episodeCodeF1, StringComparison.CurrentCultureIgnoreCase) ||
+                    s.title.Contains(episodeCodeF2, StringComparison.CurrentCultureIgnoreCase) ||
+                    s.title.Contains(episodeCodeF3, StringComparison.CurrentCultureIgnoreCase) ||
+                    s.title.Contains(episodeCodeF4, StringComparison.CurrentCultureIgnoreCase)
                 );
 
-            var res = episodeSubtitles.Select(s => new RemoteSubtitleInfo()
-            {
-                Id = s.link.Replace('/', '|'),
-                Name = s.release_info,
-                Author = s.uploader_displayname,
-                ProviderName = Const.PluginName,
-                Comment = s.caption,
-                Format = "srt"
-            }).ToList();
+            var res = episodeSubtitles
+                .Select(s => new RemoteSubtitleInfo()
+                {
+                    Id = $"{s.subtitle.subtitleId}_{s.subtitle.language}",
+                    Name = $"{string.Join(',', s.subtitle.releaseInfo)}",
+                    Author = s.subtitle.contributors.FirstOrDefault()?.displayname,
+                    ProviderName = Const.PluginName,
+                    Comment = s.subtitle.commentary,
+                    CommunityRating = s.subtitle.rating["good"],
+                    DateCreated = s.subtitle.createdAt,
+                    Language = s.subtitle.language,
+                    DownloadCount = s.subtitle.downloads,
+                    Format = "srt"
+                }).ToList();
 
             return res;
         }
@@ -285,7 +279,8 @@ namespace Emby.Subtitle.SubSource
                 //TimeoutMs = 20_000,
                 CancellationToken = cancellationToken,
                 LogRequestAsDebug = true,
-                LogResponseHeaders = true
+                LogResponseHeaders = true,
+                RequestHeaders = { { "X-API-Key", _configuration.ApiKey } }
             };
 
         #endregion

@@ -24,12 +24,18 @@ namespace Emby.Subtitle.SubSource.Test
             _mockJsonSerializer = new Mock<IJsonSerializer>();
             var mockLocalizationManager = new Mock<ILocalizationManager>();
 
+            var config = new PluginConfiguration()
+            {
+                ApiKey = "test-api-key"
+            };
+            
             _movieProvider = new MovieProvider(
                 _mockHttpClient.Object,
                 mockLogger.Object,
                 _mockAppHost.Object,
                 _mockJsonSerializer.Object,
-                mockLocalizationManager.Object
+                mockLocalizationManager.Object,
+                config
             );
         }
 
@@ -50,7 +56,7 @@ namespace Emby.Subtitle.SubSource.Test
                 [
                     new SearchResponse.Results
                     {
-                        id = 147401,
+                        movieId = 147401,
                         title = "Superman",
                         type = "movie",
                         link = "/subtitles/superman-2025",
@@ -67,17 +73,17 @@ namespace Emby.Subtitle.SubSource.Test
 
             var subtitlesResponse = new SubtitlesResponse
             {
-                subtitles =
+                data =
                 [
                     new SubtitlesResponse.Subtitles()
                     {
-                        id = 10113419,
+                        subtitleId = 10113419,
                         language = "farsi_persian",
                         release_type = "Trailer",
                         release_info = "Superman.Official.Trailer.Fa",
-                        upload_date = "2025-05-14T16:40:12.304Z",
+                        createdAt = "2025-05-14T16:40:12.304Z",
                         hearing_impaired = 0,
-                        caption = "🔵 فرزاد یاقوتی | @DCReporter 🔵",
+                        commentary = "🔵 فرزاد یاقوتی | @DCReporter 🔵",
                         rating = "good",
                         uploader_id = 1337457,
                         uploader_displayname = "rhymeofapoem",
@@ -88,13 +94,13 @@ namespace Emby.Subtitle.SubSource.Test
                     },
                     new SubtitlesResponse.Subtitles()
                     {
-                        id = 10100690,
+                        subtitleId = 10100690,
                         language = "farsi_persian",
                         release_type = "Trailer",
                         release_info = "Superman.2025.Official.Sneak.Peak",
-                        upload_date = "2025-04-05T09:18:20.206Z",
+                        createdAt = "2025-04-05T09:18:20.206Z",
                         hearing_impaired = 0,
-                        caption = "🔵 فرزاد یاقوتی | @DCReporter 🔵",
+                        commentary = "🔵 فرزاد یاقوتی | @DCReporter 🔵",
                         rating = "good",
                         uploader_id = 1337457,
                         uploader_displayname = "rhymeofapoem",
@@ -169,7 +175,7 @@ namespace Emby.Subtitle.SubSource.Test
                 [
                     new SearchResponse.Results
                     {
-                        id = 147401,
+                        movieId = 147401,
                         title = "Superman",
                         type = "movie",
                         link = "/subtitles/superman-2025",
@@ -182,14 +188,14 @@ namespace Emby.Subtitle.SubSource.Test
 
             var subtitlesResponse = new SubtitlesResponse
             {
-                subtitles =
+                data =
                 [
                     new SubtitlesResponse.Subtitles()
                     {
-                        id = 10113419,
+                        subtitleId = 10113419,
                         language = "farsi_persian",
                         release_info = "Superman.Official.Trailer.Fa",
-                        caption = "Test Caption",
+                        commentary = "Test Caption",
                         uploader_displayname = "testuser",
                         link = "superman-2025/farsi_persian/10113419"
                     }
@@ -326,7 +332,7 @@ namespace Emby.Subtitle.SubSource.Test
                 {
                     new SearchResponse.Results
                     {
-                        id = 147401,
+                        movieId = 147401,
                         title = "Superman",
                         type = "movie",
                         link = "/subtitles/superman-2025",
@@ -384,7 +390,7 @@ namespace Emby.Subtitle.SubSource.Test
                 {
                     new SearchResponse.Results
                     {
-                        id = 147401,
+                        movieId = 147401,
                         title = "Superman",
                         type = "movie",
                         link = "/subtitles/superman-2025",
@@ -392,7 +398,7 @@ namespace Emby.Subtitle.SubSource.Test
                     },
                     new SearchResponse.Results
                     {
-                        id = 147402,
+                        movieId = 147402,
                         title = "Superman",
                         type = "tvseries",
                         link = "/subtitles/superman-series",
@@ -405,14 +411,14 @@ namespace Emby.Subtitle.SubSource.Test
 
             var subtitlesResponse = new SubtitlesResponse
             {
-                subtitles =
+                data =
                 [
                     new SubtitlesResponse.Subtitles()
                     {
-                        id = 10113419,
+                        subtitleId = 10113419,
                         language = "farsi_persian",
                         release_info = "Superman.Official.Trailer.Fa",
-                        caption = "Test Caption",
+                        commentary = "Test Caption",
                         uploader_displayname = "testuser",
                         link = "superman-2025/farsi_persian/10113419"
                     }
